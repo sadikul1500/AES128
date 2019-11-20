@@ -1,13 +1,12 @@
-
 import math
 
-file1 = 'key.csv'
+file1 = 'key.txt'
 file2 = 'data.txt'
 key = [[0 for x in range(4)] for y in range(4)]
 
 
-arr = [[2 ,3 ,1 ,1] ,[1 ,2 ,3 ,1] ,[1 ,1 ,2 ,3] ,[3 ,1 ,1 ,2]]
-inv_arr = [[14 ,11 ,13 ,9] ,[9 ,14 ,11 ,13] ,[13 ,9 ,14 ,11] ,[11 ,13 ,9 ,14]]
+arr = [[2, 3, 1, 1], [1, 2, 3, 1], [1, 1, 2, 3], [3, 1, 1, 2]]
+inv_arr = [[14, 11, 13, 9], [9, 14, 11, 13], [13, 9, 14, 11], [11, 13, 9, 14]]
 
 s_box = [
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -52,18 +51,6 @@ Rcon = [
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
     0x80, 0x1B, 0x36,
 ]
-
-
-# print(text2matrix('sadikul000000000'))
-
-def printState(state):
-    for i in range(4):
-        for j in range(4):
-            print(state[j][i], end = '')
-
-        print('')
-
-
 
 def initializeKey():
     with open(file1, 'r+') as f:
@@ -237,25 +224,108 @@ def KeyExpansion():
             temp[0] ^= Rcon[i // 4]
 
         for j in range(4):
-            w[j][i] = temp[j] ^ w[j][ i -4]
+            w[j][i] = temp[j] ^ w[j][i - 4]
 
 
     return w
 
 
+#************************cipher block chaining****************************
+def cbc(data, block, y):
+    cipher = ''
+    orginal = ''
+    out1 = open("cbc.txt", "w+", encoding='ascii', errors='ignore')
+    out2 = open("cipher_cbc.txt", 'w+', encoding='ascii', errors='ignore')
+    temp = [[0 for x in range(4)] for y in range(4)]
+
+    for p in range(block):
+        pt = [[0 for x in range(4)] for y in range(4)]
+        l = 0
+        subData = data[p * 16: (p + 1) * 16]
+        # print(subData)
+
+        for i in range(4):
+            for j in range(4):
+                pt[j][i] = ord(subData[l])
+                pt[j][i] ^= temp[j][i]
+                l += 1
+
+
+        # print(pt)
+        dec = [[0 for x in range(4)] for y in range(4)]
+        pt = encrypt(pt, expandKey)
+        cipher += getMsg(pt)
+
+        for i in range(4):
+            for j in range(4):
+                dec[j][i] = temp[j][i]
+                temp[j][i] = pt[j][i]
+
+        pt = decrypt(pt, expandKey)
+        for i in range(4):
+            for j in range(4):
+
+                pt[j][i] ^= dec[j][i]
+
+        orginal += getMsg(pt)
+
+
+    print('\nCBC chiper text : \n', cipher)
+    print(type(orginal))
+    print('\norginal text : \n', orginal[:-(16 - y)])
+    out1.write(orginal[:-(16 - y)])
+    out1.close()
+
+    out2.write(str(cipher.encode('ascii', 'ignore')))
+    out2.close()
+
+
+
+#********************************electronic codebook mode***********************************
+def ecb(data, block, y):
+    cipher = ''
+    orginal = ''
+    out1 = open("ecb.txt", "w+", encoding='ascii', errors='ignore')
+    out2 = open("cipher_ecb.txt", 'w+', encoding='ascii', errors='ignore')
+
+    for p in range(block):
+        pt = [[0 for x in range(4)] for y in range(4)]
+        l = 0
+        subData = data[p * 16: (p + 1) * 16]
+        # print(subData)
+
+        for i in range(4):
+            for j in range(4):
+                pt[j][i] = ord(subData[l])
+                l += 1
+
+        # print(pt)
+        pt = encrypt(pt, expandKey)
+        cipher += getMsg(pt)
+
+        pt = decrypt(pt, expandKey)
+        orginal += getMsg(pt)
+
+    print('EBC chiper text : \n', cipher)
+    print('orginal text : \n', orginal[:-(16 - y)])
+    out1.write(orginal[:-(16 - y)])
+    out1.close()
+
+    out2.write(str(cipher.encode('ascii', 'ignore')))
+    out2.close()
+
+
+
+#***************************main function starts here***************************
 initializeKey()
 expandKey = KeyExpansion()
-# print(key)
-# print(expandKey)
-
 
 data = ''
 
-fh = open(file2,encoding='ascii', errors='ignore')
+fh = open(file2, encoding='ascii', errors='ignore')
 data += fh.read()
 fh.close()
 
-out = open("out.txt","w+")
 
 y = len(data) % 16
 if y:
@@ -264,28 +334,6 @@ if y:
 
 block = len(data) // 16
 print(block)
-cipher = ''
-orginal = ''
 
-for p in range(block):
-    pt = [[0 for x in range(4)] for y in range(4)]
-    l = 0
-    subData = data[ p *16 : ( p +1) * 16]
-    # print(subData)
-
-    for i in range(4):
-        for j in range(4):
-            pt[j][i] = ord(subData[l])
-            l += 1
-
-    # print(pt)
-    pt = encrypt(pt, expandKey)
-    cipher += getMsg(pt)
-
-    pt = decrypt(pt, expandKey)
-    orginal += getMsg(pt)
-
-print('chiper text : \n', cipher)
-print('orginal text : \n', orginal[:-(16-y)])
-out.write(orginal[:-(16-y)])
-out.close()
+ecb(data, block, y)
+cbc(data, block, y)
